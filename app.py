@@ -4,15 +4,11 @@ import random
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'segredo!'
+# Adicionado cors_allowed_origins="*" para o Render aceitar as conexões
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# Estado global da partida contra a CPU
-estado_cpu = {
-    'vida': 10,
-    'ataque': 2,
-    'life': 12,
-    'ataque2': 2
-}
+# Estrutura para guardar partidas contra a CPU separadas por conexão (evita travamento do botão)
+jogos_cpu = {}
 
 # Estrutura para o modo Online
 salas = {}
@@ -27,24 +23,31 @@ def index():
 # ===============================================
 @socketio.on('reiniciar_jogo')
 def reiniciar_jogo():
-    global estado_cpu
-    estado_cpu = {
+    sid = request.sid
+    # Cada jogador passa a ter o seu próprio estado_cpu individual pelo ID
+    jogos_cpu[sid] = {
         'vida': 10,
         'ataque': 2,
         'life': 12,
         'ataque2': 2
     }
     emit('atualizar_tela', {
-        'vida': estado_cpu['vida'],
-        'ataque': estado_cpu['ataque'],
-        'life': estado_cpu['life'],
-        'ataque2': estado_cpu['ataque2'],
+        'vida': jogos_cpu[sid]['vida'],
+        'ataque': jogos_cpu[sid]['ataque'],
+        'life': jogos_cpu[sid]['life'],
+        'ataque2': jogos_cpu[sid]['ataque2'],
         'mensagem': 'Jogo iniciado contra a CPU!'
     })
 
 @socketio.on('jogar_turno')
 def jogar_turno(data):
-    global estado_cpu
+    sid = request.sid
+    
+    # Se ainda não iniciou a partida, inicializa o estado
+    if sid not in jogos_cpu:
+        jogos_cpu[sid] = {'vida': 10, 'ataque': 2, 'life': 12, 'ataque2': 2}
+        
+    estado_cpu = jogos_cpu[sid]
     acao_jogador = data.get('acao')
     opcoes_cpu = ['a', 'd', 'g']
     acao_cpu = random.choice(opcoes_cpu)
@@ -64,8 +67,6 @@ def jogar_turno(data):
 # ===============================================
 def resolver_combate(estado, a1, a2, nome1, nome2):
     # a1 / a2: 'a' = ataque, 'd' = defesa, 'g' = granada
-    m1, m2 = "", ""
-
     if a1 == 'a' and a2 == 'a':
         estado['life'] -= estado['ataque']
         estado['vida'] -= estado['ataque2']
@@ -114,9 +115,11 @@ def buscar_partida_online(data):
     sid = request.sid
     nome_jogador = data.get('nome', 'Jogador')
 
-    if espera is None:
+    # Proteção: se espera for do mesmo jogador, evita recriar sala com ele mesmo
+    if espera is None or (isinstance(espera, dict) and espera.get('id') == sid):
         nome_sala = f"sala_{sid}"
-        espera = nome_sala
+        # Guarda o dicionário com dados de quem está esperando
+        espera = {'sala': nome_sala, 'id': sid, 'nome': nome_jogador}
         join_room(nome_sala)
         salas[nome_sala] = {
             'p1': {'id': sid, 'nome': nome_jogador, 'vida': 10, 'ataque': 2},
@@ -125,7 +128,7 @@ def buscar_partida_online(data):
         }
         emit('status_conexao', {'msg': 'Procurando um oponente...'}, room=sid)
     else:
-        nome_sala = espera
+        nome_sala = espera['sala']
         join_room(nome_sala)
         salas[nome_sala]['p2'] = {'id': sid, 'nome': nome_jogador, 'vida': 10, 'ataque': 2}
         p1_data = salas[nome_sala]['p1']
@@ -167,7 +170,9 @@ def jogar_turno_online(data):
         p2['vida'] = estado_temp['life']
         p2['ataque'] = estado_temp['ataque2']
 
+        # Atualiza a tela do Jogador 1 (sua vida em primeiro lugar)
         emit('atualizar_tela', {'vida': p1['vida'], 'ataque': p1['ataque'], 'life': p2['vida'], 'ataque2': p2['ataque'], 'mensagem': msg}, room=p1['id'])
+        # Atualiza a tela do Jogador 2 invertida (para que veja a SUA própria vida em primeiro)
         emit('atualizar_tela', {'vida': p2['vida'], 'ataque': p2['ataque'], 'life': p1['vida'], 'ataque2': p1['ataque'], 'mensagem': msg}, room=p2['id'])
 
         sala['jogadas'] = {}

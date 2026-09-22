@@ -183,7 +183,11 @@
     </div>
 
     <script>
-        const socket = io();
+        // Configuração com suporte a Polling para funcionar no Render
+        const socket = io({
+            transports: ['polling', 'websocket']
+        });
+
         let modoAtual = 'cpu'; // 'cpu' ou 'online'
         let salaOnline = null;
         let meuNome = "Jogador";

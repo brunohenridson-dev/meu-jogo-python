@@ -5,7 +5,12 @@ import random
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'segredo!'
 # Substitua a linha do SocketIO por esta:
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent', transports=['polling', 'websocket'])
+socketio = SocketIO(
+    app, 
+    cors_allowed_origins="*", 
+    async_mode='gevent', 
+    transports=['polling']
+)
 
 # Estrutura para guardar partidas contra a CPU separadas por conexão (evita travamento do botão)
 jogos_cpu = {}

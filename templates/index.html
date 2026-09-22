@@ -6,6 +6,14 @@
     <title>granada,ataque ou defesa</title>
     <!-- Importação do Socket.IO -->
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <script>
+    const socket = io({
+        transports: ['polling'],
+        upgrade: false
+    });
+
+    // ... resto do seu código javascript ...
+</script>
     <style>
         body {
             margin: 0;

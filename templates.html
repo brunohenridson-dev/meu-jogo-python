@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <title>Combate Tático Multiplayer</title>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+    <!-- Seu HTML visual permanece idêntico ao que você montou -->
+    <div id="jogo">
+        <h3>Jogador 1</h3>
+        <div id="vida">sua vida: 10</div> 
+        <div id="ataque">seu ataque: 2</div>
+
+        <h3>CPU</h3>
+        <div id="life">vida :12</div>
+        <div id="ataque2">ataque: 2</div>
+
+        <br>
+        <textarea readonly id="log" style="width: 300px; height: 120px;">Log de combate...</textarea>
+
+        <div class="acao">
+            <!-- Ao clicar nos botões, envia 'a', 'd' ou 'g' diretamente ao Python -->
+            <button onclick="jogar('a')">⚔️ Atacar</button>
+            <button onclick="jogar('d')">🛡️ Defender</button>
+            <button onclick="jogar('g')">💣 Granada</button>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+
+        // Envia a escolha de jogada ('a', 'd' ou 'g') para o servidor Python
+        function jogar(escolha) {
+            socket.emit('jogar_turno', { acao: escolha });
+        }
+
+        // Recebe o retorno do Python e atualiza a tela automaticamente
+        socket.on('atualizar_tela', function(dados) {
+            document.getElementById("vida").innerText = "sua vida: " + dados.vida;
+            document.getElementById("ataque").innerText = "seu ataque: " + dados.ataque;
+            document.getElementById("life").innerText = "vida: " + dados.life;
+            document.getElementById("ataque2").innerText = "ataque: " + dados.ataque2;
+
+            const logArea = document.getElementById("log");
+            logArea.value += "\n\n" + dados.mensagem;
+            logArea.scrollTop = logArea.scrollHeight;
+        });
+    </script>
+</body>
+</html>
